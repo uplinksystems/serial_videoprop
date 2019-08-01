@@ -92,10 +92,11 @@ public class VideoProp {
         frame.pack();
         frame.setVisible(true);
 
-        mediaPlayer.setRepeat(true);
         clip0.start();
         mediaPlayer.playMedia("video0.mp4");
-        mediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventListener() {
+        mediaPlayer.setRepeat(true);
+
+        /*mediaPlayer.addMediaPlayerEventListener(new MediaPlayerEventListener() {
             @Override
             public void mediaChanged(MediaPlayer mediaPlayer, libvlc_media_t media, String mrl) {
 
@@ -263,18 +264,24 @@ public class VideoProp {
             public void endOfSubItems(MediaPlayer mediaPlayer) {
 
             }
-        });
+        });*/
 
         while (true) {
             if (triggered) {
                 if (reset.getState().isHigh()) {
                     triggered = false;
+                    System.out.println("Reset");
+                    mediaPlayer.stop();
                     mediaPlayer.playMedia("video0.mp4");
+                    mediaPlayer.setRepeat(true);
                 }
             } else {
                 if (trigger.getState().isHigh()) {
                     triggered = true;
-                    mediaPlayer.playMedia("Image.png", "image-duration=10");
+                    mediaPlayer.stop();
+                    System.out.println("Trigger");
+                    mediaPlayer.playMedia("Image.png");
+                    mediaPlayer.setRepeat(true);
                     clip1.loop(2);
                 }
             }
