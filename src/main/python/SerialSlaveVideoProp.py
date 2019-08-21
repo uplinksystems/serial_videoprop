@@ -280,14 +280,17 @@ def update(dt):
 @exception
 def update_media(dt):
     global media
+    global media_type
     read = str(master.readline(), 'UTF-8')
     if 'Trigger' in read:
-        media = 'image1.png'
+        media = '3, image1.jpg, image2.jpg'
+        media_type = 'slideshow'
         log.info('Triggered')
         music0.volume = 0
         music1.volume = 1
     if 'Reset' in read:
         media = 'image0.png'
+        media_type = 'image'
         log.info('Reset')
         music0.volume = 1
         music1.volume = 0

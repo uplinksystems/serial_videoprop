@@ -94,7 +94,7 @@ Builder.load_string('''
     RotatedImage:
         id: _image
         source: ''
-        allow_stretch: True        
+        allow_stretch: True
     Label:
         id: _label
         font_size: 70  
@@ -120,14 +120,14 @@ class ImageScreen(Screen):
     label = ObjectProperty(None)
 
 
-media_type = 'video'
-media = 'video0.mp4'
+media_type = 'image'
+media = 'image0.png'
 last_media = ''
 last_media_type = ''
 previous_icon = ''
 datetime_cache = {}
 slave = serial.Serial("/dev/ttyS0", baudrate=115200, timeout=0.1)
-keypad = serial.Serial("/dev/ttyACM0", baudrate=9600, timeout=0.1)
+#keypad = serial.Serial("/dev/ttyACM0", baudrate=9600, timeout=0.1)
 sm = ScreenManager(transition=NoTransition())
 image_screen = ImageScreen(name='image')
 sm.add_widget(image_screen)
@@ -158,10 +158,12 @@ def parse_datetime(string):
 
 
 def kill_all_omx():
-    for proc in psutil.process_iter():
-        if proc.name() == 'omxplayer':
-            log.info('Killed leftover OMX process: ' + str(proc.pid))
-            proc.kill()
+    subprocess.Popen(['pkill', '-f', 'omxplayer'], shell=False)
+    #pkill -f omxplayer
+    #for proc in psutil.process_iter():
+    #    if proc.name() == 'omxplayer':
+    #        log.info('Killed leftover OMX process: ' + str(proc.pid))
+    #        proc.kill()
 
 
 @mainthread
@@ -258,7 +260,7 @@ def update(dt):
         splot = media.split(', ')
         duration = int(splot[0])
         entries = len(splot) - 1
-        current = splot[int((int(time.time()) % (duration * entries)) / duration) + 1]
+        current = splot[int((int(time.time()) % (duration * entries)) / duration + 1)]
         show_image(current, True)
     elif (media_type == 'twitch'):
         image_screen.label.text = 'Connecting to stream: ' + media.split('www.')[1].split(', ')[0]
@@ -270,30 +272,74 @@ def update(dt):
     last_media = media
     last_media_type = media_type
 
-
+chars = ['a', 'a', 'a', 'a', 'a' ,'a', 'a', 'a', 'a', 'a']
+code = ''
 # Determine current media
 @exception
 def update_media(dt):
     global media
-    read = str(keypad.readline(), 'UTF-8')
-    if 'Trigger' in read:
+    global chars
+    global code
+    #read = str(keypad.readline(), 'UTF-8')
+
+    #if 'Trigger' in read:
+    if code == 'body parts':
+        chars = ['a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a']
+        code = ''
         log.info('Triggered')
         slave.write(bytes('Trigger', 'UTF-8'))
-        media = 'video1.mp4'
-    if GPIO.input(17) and media == 'video1.mp4':
+        media = 'image1.png'
+    if GPIO.input(17) and media == 'image1.png':
         slave.write(bytes('Reset', 'UTF-8'))
-        keypad.write(bytes('Reset\r', 'UTF-8'))
-        media = 'video0.mp4'
+        #keypad.write(bytes('Reset\r', 'UTF-8'))
+        media = 'image0.png'
         log.info('Reset')
-
 
 kill_all_omx()
 Clock.schedule_interval(update, 0.1)
 Clock.schedule_interval(update_media, 0.1)
+#image_screen.image.angle = 90
+#image_screen.icon.angle = 90
 Window.fullscreen = 'auto'
 
-
 class Display(App):
+    def __init__(self):
+        App.__init__(self)
+        self._keyboard = Window.request_keyboard(self._keyboard_closed, self.root)
+        if self._keyboard.widget:
+            # If it exists, this widget is a VKeyboard object which you can use
+            # to change the keyboard layout.
+            pass
+        self._keyboard.bind(on_key_down=self._on_keyboard_down)
+
+    def _keyboard_closed(self):
+        print('My keyboard have been closed!')
+        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+        self._keyboard = None
+
+    def _on_keyboard_down(self, keyboard, keycode, text='', modifiers=[]):
+        try:
+            if text.isalpha() and text != chars[len(chars) - 1]:
+                for i in range(1, len(chars)):
+                    chars[i - 1] = chars[i]
+                chars[len(chars) - 1] =  ' ' if text == 'spacebar' else text
+                global code
+                code = ''.join(chars)
+                print(code)
+            print('The key', text, 'have been pressed')
+            print(' - text is %r' % text)
+            print(' - modifiers are %r' % modifiers)
+
+            # Keycode is composed of an integer + a string
+            # If we hit escape, release the keyboard
+            if text == 'escape':
+                keyboard.release()
+
+            # Return True to accept the key. Otherwise, it will be used by
+            # the system.
+            return True
+        except Exception as e:
+            log.warning('Keyboard input parsing threw and error: ' + str(e))
 
     def build(self):
         # Window.clearcolor = (0, 0, 0, 0.1)
